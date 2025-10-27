@@ -1,0 +1,19 @@
+{
+  "name": "n8n-maria-eduarda",
+  "version": "1.0.0",
+  "description": "N8N para automação da Maria Eduarda",
+  "main": "index.js",
+  "scripts": {
+    "start": "n8n start"
+  },
+  "keywords": ["n8n", "automation", "workflow"],
+  "author": "Manus AI",
+  "license": "MIT",
+  "dependencies": {
+    "n8n": "^1.15.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
