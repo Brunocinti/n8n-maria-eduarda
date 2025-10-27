@@ -1,0 +1,141 @@
+{
+  "name": "Consultar Ofertas API Facta",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "consultar-ofertas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook - Receber CPF",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "consultar-ofertas"
+    },
+    {
+      "parameters": {
+        "url": "https://webservice-homol.facta.com.br/gera-token",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic NjAyMTk6bmducm0yZ2owMmF1ZGl0Z2NiM2U="
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Gerar Token Facta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://webservice-homol.facta.com.br/consignado-trabalhador/consulta-ofertas?cpf={{ $json.query.cpf }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $node['Gerar Token Facta'].json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-2",
+      "name": "Consultar Ofertas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai dados da resposta\nconst resposta = $input.item.json;\n\n// Verifica se há erro ou não há ofertas\nif (resposta.erro || !resposta.dados || resposta.dados.length === 0) {\n  return {\n    sucesso: false,\n    aprovado: false,\n    mensagem: \"Poxa, ainda não temos opções de empréstimo CLT disponíveis para você no momento... 😕 Mas não desista! Volte em breve que teremos novidades.\"\n  };\n}\n\n// Extrai primeira oferta\nconst oferta = resposta.dados[0];\nconst dadosOferta = oferta.oferta;\nconst dadosResposta = oferta.resposta;\n\n// Verifica se é elegível\nif (dadosOferta.elegivelEmprestimo !== 'SIM') {\n  return {\n    sucesso: false,\n    aprovado: false,\n    mensagem: \"Poxa, ainda não temos opções de empréstimo CLT disponíveis para você no momento... 😕 Mas não desista! Volte em breve que teremos novidades.\"\n  };\n}\n\n// Formata resposta de sucesso\nreturn {\n  sucesso: true,\n  aprovado: true,\n  cliente: {\n    nome: dadosOferta.nomeTrabalhador,\n    cpf: dadosOferta.cpf,\n    dataNascimento: dadosOferta.dataNascimento,\n    dataAdmissao: dadosOferta.dataAdmissao\n  },\n  oferta: {\n    valorLiberado: parseFloat(dadosResposta.valorLiberado || dadosOferta.valorLiberado),\n    numeroParcelas: parseInt(dadosResposta.numeroParcelas || dadosOferta.nroParcelas),\n    valorParcela: parseFloat(dadosResposta.valorParcela),\n    valorTotal: parseFloat(dadosResposta.valorEmprestimo),\n    taxaMensal: parseFloat(dadosResposta.valorTaxaMensal),\n    taxaAnual: parseFloat(dadosResposta.valorTaxaAnual),\n    valorIOF: parseFloat(dadosResposta.valorIOF),\n    margemDisponivel: parseFloat(dadosOferta.margemDisponivel)\n  },\n  mensagem: `🎉 Ótima notícia, ${dadosOferta.nomeTrabalhador}!\\n\\nVocê tem R$ ${dadosResposta.valorLiberado} pré-aprovado em até ${dadosResposta.numeroParcelas}x de R$ ${dadosResposta.valorParcela}!\\n\\n✨ Taxa de apenas ${dadosResposta.valorTaxaMensal}% ao mês\\n✨ Desconto automático na folha\\n✨ Aprovação rápida\\n\\nEssa é uma oportunidade excelente! Posso prosseguir com a contratação?`\n};"
+      },
+      "id": "code-1",
+      "name": "Processar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-1",
+      "name": "Responder ao GPT Maker",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receber CPF": {
+      "main": [
+        [
+          {
+            "node": "Gerar Token Facta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Token Facta": {
+      "main": [
+        [
+          {
+            "node": "Consultar Ofertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Ofertas": {
+      "main": [
+        [
+          {
+            "node": "Processar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Responder ao GPT Maker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-27T00:00:00.000Z",
+  "versionId": "1"
+}
+
